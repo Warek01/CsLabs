@@ -1,15 +1,37 @@
-namespace CS_Labs;
+namespace CS_Labs.Helpers;
 
-public static class Helper {
+public static class GraphicHelper {
+  public static void ColorPrint(
+    string        text,
+    ConsoleColor? bg = null,
+    ConsoleColor? fg = null
+  ) {
+    if (bg is not null) {
+      Console.BackgroundColor = bg.GetValueOrDefault();
+    }
+
+    if (fg is not null) {
+      Console.ForegroundColor = fg.GetValueOrDefault();
+    }
+
+    Console.Write(text);
+    Console.ResetColor();
+  }
+
   public static void ColorPrintIf(
-    string       text,
-    bool         expr,
-    ConsoleColor bg = ConsoleColor.Black,
-    ConsoleColor fg = ConsoleColor.White
+    string        text,
+    bool          expr,
+    ConsoleColor? bg = null,
+    ConsoleColor? fg = null
   ) {
     if (expr) {
-      Console.BackgroundColor = bg;
-      Console.ForegroundColor = fg;
+      if (bg is not null) {
+        Console.BackgroundColor = bg.GetValueOrDefault();
+      }
+
+      if (fg is not null) {
+        Console.ForegroundColor = fg.GetValueOrDefault();
+      }
     }
 
     Console.Write(text);
@@ -37,7 +59,7 @@ public static class Helper {
         string str = pair.Value;
 
         for (int i = 0; i < (buttonWidth - pair.Value.Length) / 2; i++) {
-          str =  $" {str} ";
+          str = $" {str} ";
         }
 
         ColorPrintIf(str, Equals(dict[selected], pair), bg, fg);
@@ -70,5 +92,16 @@ public static class Helper {
           break;
       }
     } while (true);
+  }
+
+  public static void PrintMultiColorText(IEnumerable<KeyValuePair<string, ConsoleColor?>> textList) {
+    foreach (var text in textList) {
+      if (text.Value is not null) {
+        Console.ForegroundColor = text.Value.GetValueOrDefault();
+      }
+
+      Console.Write(text);
+      Console.ResetColor();
+    }
   }
 }

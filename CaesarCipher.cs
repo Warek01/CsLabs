@@ -1,128 +1,138 @@
+using CS_Labs.Helpers;
+
 namespace CS_Labs;
 
-public static class CaesarCipher {
+public class CaesarCipher {
   private const int AlphabetSize = 26;
 
-  private static readonly char[] Alphabet = new char[AlphabetSize] {
+  private readonly Printer _printer = new();
+
+  private static readonly List<char> Alphabet = new() {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z'
   };
 
-  public static void Run() {
+  private readonly List<char> _cryptogram;
+  private readonly string     _message;
+  private readonly int?       _shiftSize;
+  private readonly string?    _keyword;
+
+  public CaesarCipher() {
     do {
-      char[]  cryptogram = new char[AlphabetSize];
-      int?    shiftSize  = null;
-      string? keyword    = null;
-      string  message    = SelectMessageScreen();
-
-      for (int i = 0; i < AlphabetSize; i++) {
-        cryptogram[i] = Alphabet[i];
-      }
+      _message    = SelectMessageScreen();
+      _cryptogram = new(Alphabet);
 
       Console.Clear();
-      if (AddKeywordPrompt()) {
+      if (
+        new SelectForm<bool>()
+        .Title("Add second key?")
+        .AddOption(true,  "Yes")
+        .AddOption(false, "No")
+        .Render()
+      ) {
         Console.Clear();
-        keyword    = SelectKeyword();
-        cryptogram = UpdateCryptogramWithKeyword(cryptogram, keyword);
+        _keyword    = SelectKeyword();
+        _cryptogram = UpdateCryptogramWithKeyword();
       }
 
       Console.Clear();
-      CipherMethod method = keyword is not null ? CipherMethod.Key : SelectEncryptionMethodScreen();
-      Console.Clear();
+      CipherMethod method = _keyword is not null
+        ? CipherMethod.Key
+        : new SelectForm<CipherMethod>()
+          .Title("Select cipher creation method")
+          .AddOption(CipherMethod.Cryptogram, "Cryptogram")
+          .AddOption(CipherMethod.Key,        "Key")
+          .Render();
 
       if (method == CipherMethod.Key) {
-        shiftSize  = SelectKScreen();
-        cryptogram = UpdateCryptogramWithK(shiftSize.Value, cryptogram);
+        _shiftSize  = SelectShiftSizeScreen();
+        _cryptogram = UpdateCryptogramWithK();
       }
       else {
-        cryptogram = SelectCryptogram();
+        _cryptogram = SelectCryptogram();
       }
 
 
       Console.Clear();
-      Operation selectedOp = SelectOperation();
+      Operation selectedOp = new SelectForm<Operation>()
+                             .Title("Select operation")
+                             .AddOption(Operation.Decrypt, "Decrypt")
+                             .AddOption(Operation.Encrypt, "Encrypt")
+                             .Render();
       Console.Clear();
 
       string newMessage = selectedOp == Operation.Encrypt
-        ? EncryptMessage(message, cryptogram)
-        : shiftSize is not null
-          ? DecryptMessage(message, cryptogram, shiftSize.Value)
-          : DecryptMessage(message, cryptogram);
+        ? EncryptMessage()
+        : DecryptMessage();
 
-      Console.WriteLine(newMessage);
+      _printer
+        .Clear()
+        .Text("Message:", ConsoleColor.Blue)
+        .NewLine()
+        .Text(newMessage)
+        .NewLine()
+        .NewLine()
+        .Text("Cryptogram:", ConsoleColor.Blue)
+        .NewLine()
+        .Text(_cryptogram.Aggregate(string.Empty, (current, c) => current + c + " "))
+        .NewLine()
+        .NewLine()
+        .Text("Press any key to continue.", ConsoleColor.Yellow);
+
       Console.ReadKey(true);
-    } while (Helper.SelectMultipleChoice<bool>(
-               new() {
-                 new(false, "No"),
-                 new(true, "Yes"),
-               },
-               title: "Restart?"
-             ));
+    } while (
+      new SelectForm<bool>()
+      .Title("Restart?")
+      .AddOption(false, "No")
+      .AddOption(true,  "Yes")
+      .Render()
+    );
 
-    Console.Clear();
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("BYE");
-    Console.ResetColor();
+    _printer
+      .Clear()
+      .Text("BYE", ConsoleColor.Green);
   }
 
-  private static char[] UpdateCryptogramWithKeyword(char[] cryptogram, string keyword) {
+  private List<char> UpdateCryptogramWithKeyword() {
     HashSet<char> chars             = new();
-    Queue<char>   keywordCharsQueue = new(keyword);
-    char[]        newCryptogram     = new char[AlphabetSize];
+    Queue<char>   keywordCharsQueue = new(_keyword!);
+    List<char>    newCryptogram     = new();
 
-    for (int i = 0, j = 0; i < keyword.Length + cryptogram.Length; i++) {
+    for (int i = 0; i < _keyword!.Length + _cryptogram.Count; i++) {
       char c = keywordCharsQueue.Any()
         ? keywordCharsQueue.Dequeue()
-        : Alphabet[i - keyword.Length];
+        : Alphabet[i - _keyword.Length];
 
       if (chars.Contains(c)) {
         continue;
       }
 
-      newCryptogram[j++] = c;
+      newCryptogram.Add(c);
       chars.Add(c);
     }
 
     return newCryptogram;
   }
 
-  private static Operation SelectOperation() {
-    return Helper.SelectMultipleChoice<Operation>(
-      new() {
-        new(Operation.Encrypt, "Encrypt"),
-        new(Operation.Decrypt, "Decrypt")
-      },
-      title: "Select operation"
-    );
-  }
-
-  private static CipherMethod SelectEncryptionMethodScreen() {
-    return Helper.SelectMultipleChoice<CipherMethod>(
-      new() {
-        new(CipherMethod.Key, "Key"),
-        new(CipherMethod.Cryptogram, "Cryptogram")
-      },
-      title: "Select cipher creation method"
-    );
-  }
-
-  private static int SelectKScreen() {
+  private int SelectShiftSizeScreen() {
     bool withError = false;
     do {
-      Console.Clear();
+      _printer.Clear();
+
       if (withError) {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("Wrong input");
-        Console.ResetColor();
+        _printer
+          .Text("Wrong input (Must be between 1 and 25)", ConsoleColor.Red)
+          .NewLine();
       }
 
-      Console.Write("Shift size (0 - 25): ");
-      string? _k = Console.ReadLine();
+      _printer
+        .Text("Shift size (1 - 25): ", ConsoleColor.Blue)
+        .Prompt(out string? shiftSize);
 
       if (
-        _k is null
-        || !int.TryParse(_k, out int k)
-        || k is < 0 or > AlphabetSize - 1
+        shiftSize is null
+        || !int.TryParse(shiftSize, out int k)
+        || k is < 1 or > 25
       ) {
         withError = true;
         continue;
@@ -132,83 +142,92 @@ public static class CaesarCipher {
     } while (true);
   }
 
-  private static string SelectMessageScreen() {
-    Console.Clear();
-    Console.Write("Message: ");
-    return Console.ReadLine()!.ToUpper();
+  private string SelectMessageScreen() {
+    _printer
+      .Clear()
+      .Text("Message: ", ConsoleColor.Blue)
+      .Prompt(out string? rawMessage);
+
+    string message = rawMessage!
+                     .Where(c => c is not (' ' or '\t' or '\n' or '\0'))
+                     .Aggregate(
+                       string.Empty,
+                       (current, c) => current + c.ToString().ToUpper()
+                     );
+
+    return message;
   }
 
-  private static string SelectKeyword() {
-    Console.Write("Keyword: ");
-    return Console.ReadLine()!.ToUpper();
+  private string SelectKeyword() {
+    bool    error = false;
+    string? keyword;
+
+    do {
+      _printer.Clear();
+
+      if (error) {
+        _printer
+          .Text("Message length must be greater than 7", ConsoleColor.Red)
+          .NewLine();
+      }
+
+      _printer
+        .Text("Keyword: ", ConsoleColor.Blue)
+        .Prompt(out keyword);
+
+      if (keyword is null || keyword.Length < 7) {
+        error = true;
+        continue;
+      }
+
+      keyword = keyword
+                .Where(c => c is not (' ' or '\t' or '\n' or '\0'))
+                .Aggregate(string.Empty, (current, c) => current + c.ToString().ToUpper());
+      
+    } while (error);
+
+    return keyword!;
   }
 
-  private static string EncryptMessage(string m, char[] cryptogram) {
+  private string EncryptMessage() {
     string encrypted = string.Empty;
 
-    foreach (char c in m) {
+    foreach (char c in _message) {
       int code = c - 'A';
-      encrypted += cryptogram[code];
+      encrypted += _cryptogram[code];
     }
 
     return encrypted;
   }
 
-  private static string DecryptMessage(string m, char[] cryptogram) {
-    string decrypted = string.Empty;
-    int    diff      = Alphabet[0] - cryptogram[0];
-
-    foreach (char c in m) {
-      int code = c - 'A';
-      decrypted += Alphabet[code + diff];
-    }
-
-    return decrypted;
+  private string DecryptMessage() {
+    return _message.Aggregate(
+      string.Empty,
+      (current, c) => current + Alphabet[_cryptogram.FindIndex(cc => cc == c)]
+    );
   }
 
-  private static string DecryptMessage(string message, char[] cryptogram, int shiftSize) {
-    string     decrypted    = string.Empty;
-    List<char> cryptogramLs = new(cryptogram);
+  private List<char> SelectCryptogram() {
+    Console.WriteLine("\nInput cryptogram");
 
-    for (int i = 0; i < message.Length; i++) {
-      int index = cryptogramLs.FindIndex(_c => _c == message[i]);
-      decrypted += Alphabet[(i - shiftSize) % AlphabetSize];
-    }
+    string     line       = Console.ReadLine()!;
+    List<char> cryptogram = new(AlphabetSize);
 
-    return decrypted;
-  }
-
-  private static char[] SelectCryptogram() {
-    Console.WriteLine("Input cryptogram");
-
-    string line       = Console.ReadLine()!;
-    char[] cryptogram = new char[AlphabetSize];
-    int    j          = 0;
     foreach (var c in line.Where(c => c is > 'A' and < 'z')) {
-      cryptogram[j++] = c.ToString().ToUpper()[0];
+      cryptogram.Add(c.ToString().ToUpper()[0]);
     }
 
     return cryptogram;
   }
 
-  private static char[] UpdateCryptogramWithK(int k, char[] cryptogram) {
-    char[] newCryptogram = new char[AlphabetSize];
+  private List<char> UpdateCryptogramWithK() {
+    List<char> newCryptogram = new();
 
     for (int i = 0; i < AlphabetSize; i++) {
-      newCryptogram[i] = cryptogram[(i + k) % AlphabetSize];
+      newCryptogram.Add(_cryptogram[(i + _shiftSize!.Value) % AlphabetSize]);
     }
 
     return newCryptogram;
-  }
-
-  private static bool AddKeywordPrompt() {
-    return Helper.SelectMultipleChoice<bool>(
-      new() {
-        new(true, "Yes"),
-        new(false, "No")
-      },
-      title: "Add second key?"
-    );
   }
 
   private enum Operation {
