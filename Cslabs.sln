@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS Labs", "CS Labs.csproj", "{19C4E7DD-A934-43CC-8041-CD873DCD5BA1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsLabs", "CsLabs.csproj", "{19C4E7DD-A934-43CC-8041-CD873DCD5BA1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

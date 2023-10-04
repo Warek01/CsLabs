@@ -169,6 +169,8 @@ public class CaesarCipher {
         _printer
           .Text("Message length must be greater than 7", ConsoleColor.Red)
           .NewLine();
+
+        error = false;
       }
 
       _printer
