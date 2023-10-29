@@ -3,7 +3,7 @@ using System.Text;
 namespace CsLabs.Cipher;
 
 public class Vigenere {
-  public const int MinKeyLength = 3;
+  public const int MinKeyLength = 7;
 
   private static readonly List<char> _alphabet = new() {
       'A', 'Ă', 'Â', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'Î', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
