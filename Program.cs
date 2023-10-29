@@ -1,55 +1,88 @@
-﻿using CS_Labs.Helpers;
+﻿using System.Collections;
+using System.Globalization;
+using CS_Labs.Helpers;
 using CsLabs.Cipher;
 
-var printer = new Printer();
+var p = new Printer();
+bool isRandom = new SelectForm<bool>()
+                .Title("Input form")
+                .AddOption(true,  "Random")
+                .AddOption(false, "Manual")
+                .Render();
 
-printer
-    .Text("Text (no symbols/digits, any case, space allowed) = ", ConsoleColor.Blue)
-    .Prompt(out var text);
+BitArray bits;     // S1(B1)S2(B2)S3(B3)S4(B4)S5(B5)S6(B6)S7(B7)S8(B8)
+BitArray permuted; // P(S1(B1)S2(B2)S3(B3)S4(B4)S5(B5)S6(B6)S7(B7)S8(B8))
+BitArray prevL;    // L(i - 1)
 
-while (text is null || text.Length == 0 || !Vigenere.IsValidText(text)) {
-  printer
-      .Clear()
-      .Text("Invalid text, input again", ConsoleColor.Red)
-      .NewLine()
-      .Prompt(out text);
-}
+var rBytes = new byte[4]; // byte array of R to ease working with bits
 
-printer
-    .Text("Key (uppercase, no whitespace) = ", ConsoleColor.Blue)
-    .Prompt(out var key);
-
-while (key is null  || key.Length < Vigenere.MinKeyLength || !Vigenere.IsValidKey(key)) {
-  printer
-      .Clear()
-      .Text("Invalid key, input again", ConsoleColor.Red)
-      .NewLine()
-      .Prompt(out key);
-}
-
-var cipher = new Vigenere(text, key);
-
-bool isDecrypt = new SelectForm<bool>()
-                 .Title("Select operation")
-                 .AddOption(false, "Encrypt")
-                 .AddOption(true,  "Decrypt")
-                 .Render();
-
-printer
-    .Clear()
-    .Text("Original text: ", ConsoleColor.Blue)
-    .Text(cipher.OriginalText)
-    .NewLine()
-    .Text("Key: ", ConsoleColor.Blue)
-    .Text(cipher.Key)
-    .NewLine();
-
-if (isDecrypt) {
-  printer
-      .Text("Decrypted text: ", ConsoleColor.Blue)
-      .Text(cipher.Decrypt());
+if (isRandom) {
+  bits  = Des.RandomBits(32);
+  prevL = Des.RandomBits(32);
 } else {
-  printer
-      .Text("Encrypted text: ", ConsoleColor.Blue)
-      .Text(cipher.Encrypt());
+  PromptValues(out bits, out prevL);
+}
+
+permuted = Des.Permute(bits);
+prevL.CopyTo(rBytes, 0);
+
+var r = new BitArray(rBytes); // R
+r.Xor(permuted).CopyTo(rBytes, 0);
+
+p.Clear();
+PrintBytes(bits,     "S1(B1)S2(B2)S3(B3)S4(B4)S5(B5)S6(B6)S7(B7)S8(B8):");
+PrintBytes(permuted, "P(S1(B1)S2(B2)S3(B3)S4(B4)S5(B5)S6(B6)S7(B7)S8(B8)):");
+PrintBytes(prevL,    "L(i - 1):");
+PrintBytes(r,        "R(i):");
+
+return;
+
+
+void PrintBytes(BitArray bitsArray, string title) {
+  var bytes = new byte[bitsArray.Length / 8];
+
+  bitsArray.CopyTo(bytes, 0);
+
+  p.Text(title, ConsoleColor.Green).NewLine();
+
+  foreach (byte b in bytes) {
+    var value = (uint)b;
+    p.Text($"{value:x2} ", ConsoleColor.Blue);
+  }
+
+  p.NewLine();
+}
+
+void PromptValues(out BitArray bits, out BitArray prevL) {
+  var      bytes = new byte[4];
+  string   text;
+  string[] splitText;
+
+  p
+    .Clear()
+    .Text("S1(B1)S2(B2)S3(B3)S4(B4)S5(B5)S6(B6)S7(B7)S8(B8) (hexadecimal separated by spaces):", ConsoleColor.DarkCyan)
+    .NewLine()
+    .Prompt(out text);
+
+  splitText = text.Split(' ');
+
+  for (int i = 0; i < 4; i++) {
+    bytes[i] = (byte) int.Parse(splitText[i], NumberStyles.HexNumber);
+  }
+
+  bits = new BitArray(bytes);
+
+  p
+    .Clear()
+    .Text("L(i - 1) (hexadecimal separated by spaces):", ConsoleColor.DarkCyan)
+    .NewLine()
+    .Prompt(out text);
+
+  splitText = text.Split(' ');
+
+  for (int i = 0; i < 4; i++) {
+    bytes[i] = (byte) int.Parse(splitText[i], NumberStyles.HexNumber);
+  }
+
+  prevL = new BitArray(bytes);
 }
